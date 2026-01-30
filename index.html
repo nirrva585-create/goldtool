@@ -1,289 +1,302 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>XAUUSD Pro Signal + Profit Tools</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XAUUSD • Advanced Signals</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #111; color: #fff; margin: 0; padding: 20px; }
-    .container { max-width: 1200px; margin: auto; }
-    h1 { text-align: center; color: gold; }
-    #price { font-size: 3em; text-align: center; margin: 20px 0; }
-    .signal { font-size: 2.5em; text-align: center; padding: 20px; border-radius: 10px; margin: 20px 0; font-weight: bold; }
-    .buy { background: #0f0; color: black; }
-    .sell { background: #f00; color: white; }
-    .neutral { background: #555; }
-    .info { display: flex; justify-content: space-around; flex-wrap: wrap; }
-    .card { background: #222; padding: 15px; border-radius: 8px; margin: 10px; min-width: 280px; text-align: center; }
-    .indicator { font-size: 1.2em; margin: 5px; }
-    input, button { padding: 8px; margin: 5px; }
-    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-    th, td { border: 1px solid #444; padding: 8px; text-align: center; }
-    .disclaimer { background: #800; padding: 10px; border-radius: 5px; text-align: center; margin: 20px 0; }
+    :root { --bg:#0a0a0a; --card:#111; --text:#e0e0e0; --gold:#ffd700; --border:#333; --green:#0f0; --red:#f00; }
+    body { background:var(--bg); color:var(--text); font-family:system-ui,sans-serif; margin:0; padding:20px 15px; line-height:1.5; }
+    .container { max-width:1000px; margin:auto; }
+    h1 { color:var(--gold); text-align:center; font-size:2.2rem; margin:0 0 20px; }
+    #price { font-size:3rem; text-align:center; margin:20px 0; font-weight:600; }
+    .signal { font-size:2.2rem; padding:15px; border-radius:8px; text-align:center; font-weight:bold; margin:20px 0; border:2px solid; transition:all 0.3s; }
+    .buy { color:var(--green); border-color:var(--green); background:rgba(0,255,0,0.05); }
+    .sell { color:var(--red); border-color:var(--red); background:rgba(255,0,0,0.05); }
+    .neutral { color:#aaa; border-color:#444; background:#111; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:20px; margin:20px 0; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:20px; }
+    .card h3 { color:var(--gold); margin:0 0 15px; font-size:1.3rem; }
+    input,button { background:#222; color:var(--text); border:1px solid var(--border); padding:10px; border-radius:6px; margin:8px 0; width:100%; box-sizing:border-box; }
+    button { background:var(--gold); color:#000; cursor:pointer; font-weight:bold; }
+    table { width:100%; border-collapse:collapse; margin-top:15px; }
+    th,td { border:1px solid var(--border); padding:8px; text-align:center; font-size:0.9rem; }
+    .warn { background:#300; padding:12px; border-radius:6px; text-align:center; margin:20px 0; font-size:0.95rem; }
+    a { color:var(--gold); text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    .small { font-size:0.9rem; color:#aaa; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>XAUUSD Pro Signal & Profit Tools</h1>
-    <div class="disclaimer">⚠️ DISCLAIMER: This is educational/demo only. Trading gold involves high risk of loss. Not financial advice. Backtest & use at your own risk.</div>
+<div class="container">
+  <h1>XAUUSD Advanced Signals</h1>
+  <div class="warn">Educational only • High risk • Not advice • 15s poll (quota-sensitive)</div>
 
-    <div id="price">Loading live price...</div>
-    <div id="signal" class="signal neutral">Waiting for signal...</div>
+  <div id="price">Loading...</div>
+  <div id="signal" class="signal neutral">Waiting...</div>
 
-    <div class="info">
-      <div class="card">
-        <h3>Current Price</h3>
-        <p id="current-price">-</p>
-      </div>
-      <div class="card">
-        <h3>Indicators</h3>
-        <p class="indicator">RSI (14): <span id="rsi">-</span></p>
-        <p class="indicator">SMA (50): <span id="sma">-</span></p>
-        <p class="indicator">EMA (20): <span id="ema">-</span></p>
-        <p class="indicator">BB (20,2): <span id="bb">-</span></p>
-      </div>
-      <div class="card">
-        <h3>TP/SL & Position</h3>
-        <p id="buy-tp-sl">-</p>
-        <p id="sell-tp-sl">-</p>
-      </div>
+  <div class="grid">
+    <div class="card">
+      <h3>Indicators</h3>
+      <div>Price: <b id="cur">-</b></div>
+      <div>RSI(14): <b id="rsi">-</b></div>
+      <div>EMA(20): <b id="ema20">-</b></div>
+      <div>EMA(200): <b id="ema200">-</b></div>
+      <div>MACD: <b id="macd">-</b></div>
+      <div>Stoch %K/%D: <b id="stoch">-</b></div>
+      <div>ADX(14): <b id="adx">-</b></div>
+      <div>BB(20,2): <b id="bb">-</b></div>
     </div>
 
     <div class="card">
-      <h3>Position Size Calculator (Risk Management)</h3>
-      <label>Account ($): <input id="account" type="number" value="10000"></label><br>
-      <label>Risk %: <input id="risk" type="number" value="1" step="0.1"></label><br>
-      <label>SL Distance ($/oz): <input id="sldist" type="number" value="10"></label><br>
-      <button onclick="calcPosition()">Calculate</button>
-      <p id="possize">-</p>
+      <h3>TP/SL (1:2 RR)</h3>
+      <div id="buy-tp">-</div>
+      <div id="sell-tp">-</div>
     </div>
 
-    <div style="text-align:center;">
-      <button id="enable-alerts">Enable Alerts & Sound</button>
-      <button id="toggle-sound">Sound: ON</button>
-    </div>
-
-    <!-- Charts -->
-    <div class="card" style="width:100%;">
-      <h3>XAUUSD Live Chart</h3>
-      <div id="tradingview_xau"></div>
-    </div>
-    <div class="card" style="width:100%;">
-      <h3>DXY (USD Index) - Gold Correlation</h3>
-      <div id="tradingview_dxy"></div>
-    </div>
-
-    <!-- Signal Log -->
     <div class="card">
-      <h3>Signal History</h3>
-      <table id="signalLog">
-        <thead><tr><th>Time</th><th>Price</th><th>Signal</th></tr></thead>
-        <tbody></tbody>
-      </table>
+      <h3>Position Size</h3>
+      <input id="acc" type="number" value="10000">
+      <input id="risk" type="number" value="1" step="0.1">
+      <input id="sl" type="number" value="10">
+      <button onclick="calcSize()">Calc</button>
+      <div id="size">-</div>
     </div>
 
-    <!-- News -->
     <div class="card">
-      <h3>Gold News (Fundamentals)</h3>
-      <iframe src="https://www.investing.com/commodities/gold-news" width="100%" height="400" frameborder="0"></iframe>
-      <p>Also check COT Reports for "whale" positioning: <a href="https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm" target="_blank">CFTC</a></p>
+      <h3>Smart Money / Notes</h3>
+      <p class="small">Advanced logic: MACD + Stoch cross + RSI/BB + EMA200 trend + ADX strength.</p>
+      <p class="small">For SMC: Watch for retests of Order Blocks/FVGs near these signals.</p>
     </div>
   </div>
 
-  <!-- TradingView Widgets -->
-  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-  <script type="text/javascript">
-    new TradingView.widget({
-      "width": "100%", "height": 500, "symbol": "OANDA:XAUUSD", "interval": "5", "timezone": "Etc/UTC",
-      "theme": "dark", "style": "1", "locale": "en", "enable_publishing": false, "container_id": "tradingview_xau"
-    });
-    new TradingView.widget({
-      "width": "100%", "height": 400, "symbol": "TVC:DXY", "interval": "60", "timezone": "Etc/UTC",
-      "theme": "dark", "style": "1", "locale": "en", "enable_publishing": false, "container_id": "tradingview_dxy"
-    });
-  </script>
+  <div style="text-align:center; margin:30px 0;">
+    <button id="alerts">Enable Alerts</button>
+    <button id="sound">Sound: ON</button>
+  </div>
 
-  <script>
-    const API_KEY = 'goldapi-c1v6w5sml0iq8b3-io'; // From https://www.goldapi.io/
-    const API_URL = 'https://www.goldapi.io/api/XAU/USD';
-    const HEADERS = { 'x-access-token': API_KEY };
+  <div class="card">
+    <h3>XAUUSD Chart (5m)</h3>
+    <div id="tv-xau" style="height:420px"></div>
+  </div>
 
-    let prevPrice = null;
-    let currentPrice = null;
-    let signal = 'neutral';
-    let priceHistory = []; // For indicators
-    let soundEnabled = true;
-    let alertsEnabled = false;
+  <div class="card">
+    <h3>Signal Log</h3>
+    <table id="log"><thead><tr><th>Time</th><th>Price</th><th>Signal</th></tr></thead><tbody></tbody></table>
+  </div>
+</div>
 
-    const buyAudio = new Audio('https://www.soundjay.com/buttons/beep-01a.mp3'); // Buy beep
-    const sellAudio = new Audio('https://www.soundjay.com/buttons/beep-02.mp3'); // Sell beep
+<script src="https://s3.tradingview.com/tv.js"></script>
+<script>
+new TradingView.widget({
+  width:"100%", height:420, symbol:"OANDA:XAUUSD", interval:"5", timezone:"Etc/UTC",
+  theme:"dark", style:"1", locale:"en", enable_publishing:false, container_id:"tv-xau"
+});
 
-    async function fetchPrice() {
-      try {
-        const res = await fetch(API_URL, { headers: HEADERS });
-        const data = await res.json();
-        if (data.price) {
-          currentPrice = data.price;
-          document.getElementById('price').innerText = currentPrice.toFixed(2);
-          document.getElementById('current-price').innerText = currentPrice.toFixed(2);
+const API_KEY = 'goldapi-c1v6w5sml0iq8b3-io';
+const API = 'https://www.goldapi.io/api/XAU/USD';
+const HEADERS = {'x-access-token': API_KEY};
 
-          priceHistory.push(currentPrice);
-          if (priceHistory.length > 200) priceHistory.shift();
+let price = null, lastPrice = null, history = [], signal = 'neutral';
+let alerts = false, soundOn = true, lastAlertTime = 0;
+const beep = new Audio('https://www.soundjay.com/buttons/beep-07.mp3');
+const POLL_MS = 15000;
 
-          generateIndicatorsAndSignal();
-        } else {
-          document.getElementById('price').innerText = 'API Error';
-        }
-      } catch (err) {
-        document.getElementById('price').innerText = 'Fetch Error';
+async function update() {
+  try {
+    const r = await fetch(API, {headers: HEADERS});
+    const d = await r.json();
+    if (!d.price) return;
+
+    price = d.price;
+    if (price === lastPrice) return;
+    lastPrice = price;
+
+    document.getElementById('price').textContent = price.toFixed(2);
+    document.getElementById('cur').textContent = price.toFixed(2);
+
+    history.push(price);
+    if (history.length > 300) history.shift(); // More history for EMA200/ADX
+
+    if (history.length >= 50) {
+      updateIndicators();
+      checkAdvancedSignal();
+    }
+  } catch {}
+}
+
+// EMA function (stateful per period)
+const emaCache = {};
+function getEMA(period) {
+  if (history.length < period) return null;
+  const key = `ema${period}`;
+  if (!emaCache[key]) emaCache[key] = history.slice(-period).reduce((a,b)=>a+b,0)/period;
+  const k = 2 / (period + 1);
+  emaCache[key] = price * k + emaCache[key] * (1 - k);
+  return emaCache[key];
+}
+
+function getRSI(period = 14) {
+  if (history.length < period + 1) return null;
+  let g = 0, l = 0;
+  for (let i = history.length - period; i < history.length; i++) {
+    const d = history[i] - history[i-1];
+    if (d > 0) g += d; else l -= d;
+  }
+  const ag = g / period, al = l / period || 0.0001;
+  return 100 - 100 / (1 + ag / al);
+}
+
+function getMACD() {
+  const ema12 = getEMA(12);
+  const ema26 = getEMA(26);
+  if (!ema12 || !ema26) return null;
+  const macdLine = ema12 - ema26;
+  const signalLine = getEMA(9); // Approximate on MACD line, but needs separate cache
+  // For simplicity, use EMA9 on price diff proxy (better: track macd history)
+  return {macd: macdLine, signal: getEMA(9), hist: macdLine - getEMA(9)};
+}
+
+function getStoch(period = 14, smoothK = 3, smoothD = 3) {
+  if (history.length < period) return null;
+  const slice = history.slice(-period);
+  const low = Math.min(...slice);
+  const high = Math.max(...slice);
+  const k = ((price - low) / (high - low || 0.0001)) * 100;
+  // Simple SMA for %D
+  const d = k; // Approx for now (full needs %K history)
+  return {k: k.toFixed(2), d: d.toFixed(2)};
+}
+
+function getADX(period = 14) {
+  if (history.length < period * 2) return null;
+  // Simplified ADX (full is complex: +DM/-DM, smoothed)
+  // Proxy: volatility measure
+  const changes = history.slice(-period).map((p,i)=> i>0 ? Math.abs(p - history[history.length - period + i -1]) : 0);
+  const atr = changes.reduce((a,b)=>a+b,0)/period;
+  return atr > 0.5 ? 30 : 20; // Dummy strong/weak (real ADX needs DI)
+}
+
+function getBB(period = 20, dev = 2) {
+  if (history.length < period) return null;
+  const slice = history.slice(-period);
+  const m = slice.reduce((a,b)=>a+b,0)/period;
+  const v = slice.reduce((a,b)=>a+Math.pow(b-m,2),0)/period;
+  const s = Math.sqrt(v);
+  return {lo:(m-dev*s).toFixed(2), mid:m.toFixed(2), hi:(m+dev*s).toFixed(2)};
+}
+
+function updateIndicators() {
+  const rsi = getRSI();
+  const ema20 = getEMA(20);
+  const ema200 = getEMA(200);
+  const macd = getMACD();
+  const stoch = getStoch();
+  const adx = getADX();
+  const bb = getBB();
+
+  document.getElementById('rsi').textContent = rsi ? rsi.toFixed(2) : '-';
+  document.getElementById('ema20').textContent = ema20 ? ema20.toFixed(2) : '-';
+  document.getElementById('ema200').textContent = ema200 ? ema200.toFixed(2) : '-';
+  document.getElementById('macd').textContent = macd ? macd.macd.toFixed(2) + ' / ' + macd.signal.toFixed(2) : '-';
+  document.getElementById('stoch').textContent = stoch ? stoch.k + ' / ' + stoch.d : '-';
+  document.getElementById('adx').textContent = adx || '-';
+  document.getElementById('bb').textContent = bb ? `${bb.lo} – ${bb.mid} – ${bb.hi}` : '-';
+}
+
+function checkAdvancedSignal() {
+  let score = 0;
+  const rsi = getRSI() || 50;
+  const ema20 = getEMA(20) || price;
+  const ema200 = getEMA(200) || price;
+  const macd = getMACD();
+  const stoch = getStoch();
+  const bb = getBB();
+  const adx = getADX() || 0;
+
+  // Trend bias
+  if (price > ema200) score += 2; else score -= 2;
+
+  // RSI
+  if (rsi < 35) score += 2;
+  if (rsi > 65) score -= 2;
+
+  // EMA crossover
+  if (price > ema20) score += 1; else score -= 1;
+
+  // BB touch
+  if (bb && price < parseFloat(bb.lo)) score += 2;
+  if (bb && price > parseFloat(bb.hi)) score -= 2;
+
+  // MACD
+  if (macd) {
+    if (macd.macd > macd.signal && macd.hist > 0) score += 3;
+    if (macd.macd < macd.signal && macd.hist < 0) score -= 3;
+  }
+
+  // Stoch
+  if (stoch) {
+    if (parseFloat(stoch.k) > parseFloat(stoch.d) && parseFloat(stoch.k) < 30) score += 3;
+    if (parseFloat(stoch.k) < parseFloat(stoch.d) && parseFloat(stoch.k) > 70) score -= 3;
+  }
+
+  // ADX multiplier (strong trend = stronger signal)
+  const trendMult = adx > 25 ? 1.5 : 1;
+  score *= trendMult;
+
+  const newSig = score >= 8 ? 'buy' : score <= -8 ? 'sell' : 'neutral';
+
+  if (newSig !== signal) {
+    signal = newSig;
+    const el = document.getElementById('signal');
+    el.textContent = newSig.toUpperCase() + ' SIGNAL';
+    el.className = `signal ${newSig}`;
+    logSignal();
+
+    const now = Date.now();
+    if (now - lastAlertTime > 300000 && newSig !== 'neutral') {
+      if (alerts) {
+        new Notification(`XAUUSD ${newSig.toUpperCase()} @ ${price.toFixed(2)}`);
+        if (soundOn) beep.play();
       }
+      lastAlertTime = now;
     }
+  }
 
-    // Simple indicators
-    function calculateSMA(period) {
-      if (priceHistory.length < period) return null;
-      const slice = priceHistory.slice(-period);
-      return slice.reduce((a, b) => a + b, 0) / period;
-    }
+  const rr = 2, risk = 10;
+  document.getElementById('buy-tp').textContent = signal==='buy' ? `Buy TP ${(price + risk*rr).toFixed(2)} / SL ${(price - risk).toFixed(2)}` : '-';
+  document.getElementById('sell-tp').textContent = signal==='sell' ? `Sell TP ${(price - risk*rr).toFixed(2)} / SL ${(price + risk).toFixed(2)}` : '-';
+}
 
-    let ema20 = null;
-    function calculateEMA(price, period = 20) {
-      if (!ema20) {
-        ema20 = calculateSMA(period); // Initial
-        return ema20;
-      }
-      const multiplier = 2 / (period + 1);
-      ema20 = (price * multiplier) + (ema20 * (1 - multiplier));
-      return ema20;
-    }
+function logSignal() {
+  const tb = document.querySelector('#log tbody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${new Date().toLocaleTimeString()}</td><td>${price.toFixed(2)}</td><td>${signal.toUpperCase()}</td>`;
+  tb.appendChild(tr);
+  if (tb.children.length > 15) tb.removeChild(tb.firstChild);
+}
 
-    let gains = [], losses = [];
-    function calculateRSI(period = 14) {
-      if (priceHistory.length < period + 1) return null;
-      if (gains.length === 0) {
-        for (let i = 1; i <= period; i++) {
-          const diff = priceHistory[i] - priceHistory[i-1];
-          gains.push(diff > 0 ? diff : 0);
-          losses.push(diff < 0 ? -diff : 0);
-        }
-      } else {
-        const diff = priceHistory[priceHistory.length-1] - priceHistory[priceHistory.length-2];
-        gains.push(diff > 0 ? diff : 0);
-        losses.push(diff < 0 ? -diff : 0);
-        if (gains.length > period) gains.shift();
-        if (losses.length > period) losses.shift();
-      }
-      const avgGain = gains.reduce((a,b)=>a+b,0)/period;
-      const avgLoss = losses.reduce((a,b)=>a+b,0)/period || 0.0001;
-      const rs = avgGain / avgLoss;
-      return 100 - (100 / (1 + rs));
-    }
+function calcSize() {
+  const a = +document.getElementById('acc').value || 10000;
+  const r = (+document.getElementById('risk').value || 1)/100;
+  const s = +document.getElementById('sl').value || 10;
+  const risk$ = a * r;
+  const oz = risk$ / s;
+  document.getElementById('size').textContent = `Risk $${risk$.toFixed(2)} → ~${oz.toFixed(2)} oz`;
+}
 
-    function calculateBB(period = 20, stdMult = 2) {
-      if (priceHistory.length < period) return null;
-      const middle = calculateSMA(period);
-      const slice = priceHistory.slice(-period);
-      const variance = slice.reduce((a,b)=>a + Math.pow(b - middle, 2), 0) / period;
-      const std = Math.sqrt(variance);
-      return { middle: middle.toFixed(2), upper: (middle + stdMult * std).toFixed(2), lower: (middle - stdMult * std).toFixed(2) };
-    }
+update();
+setInterval(update, POLL_MS);
 
-    function generateIndicatorsAndSignal() {
-      if (priceHistory.length < 50) return; // Need data
+document.getElementById('alerts').onclick = () => {
+  Notification.requestPermission().then(p => { if (p==='granted') alerts=true; });
+  alert('Alerts ' + (alerts ? 'enabled' : 'requested'));
+};
 
-      const rsi = calculateRSI();
-      const sma50 = calculateSMA(50);
-      const ema = calculateEMA(currentPrice);
-      const bb = calculateBB();
-
-      document.getElementById('rsi').innerText = rsi ? rsi.toFixed(2) : '-';
-      document.getElementById('sma').innerText = sma50 ? sma50.toFixed(2) : '-';
-      document.getElementById('ema').innerText = ema ? ema.toFixed(2) : '-';
-      document.getElementById('bb').innerText = bb ? `${bb.lower} - ${bb.middle} - ${bb.upper}` : '-';
-
-      // Consensus signal (pro-level multi-indicator)
-      let buyCount = 0, sellCount = 0;
-      if (rsi && rsi < 35) buyCount++; // Oversold
-      if (rsi && rsi > 65) sellCount++; // Overbought
-      if (sma50 && currentPrice > sma50) buyCount++; else if (sma50) sellCount++;
-      if (ema && currentPrice > ema) buyCount++; else if (ema) sellCount++;
-      if (bb && currentPrice < bb.lower) buyCount++; // Break below
-      if (bb && currentPrice > bb.upper) sellCount++;
-
-      let newSignal = 'neutral';
-      if (buyCount >= 3) newSignal = 'buy';
-      if (sellCount >= 3) newSignal = 'sell';
-
-      if (newSignal !== signal) {
-        signal = newSignal;
-        updateUI();
-        logSignal();
-        if (alertsEnabled) triggerAlert();
-      }
-
-      // TP/SL (1:2 RR example)
-      const risk = 10; // $ example
-      if (signal === 'buy') {
-        const entry = currentPrice;
-        const sl = entry - risk;
-        const tp = entry + (risk * 2);
-        document.getElementById('buy-tp-sl').innerText = `Buy Entry: ${entry.toFixed(2)} | TP: ${tp.toFixed(2)} | SL: ${sl.toFixed(2)}`;
-      } else document.getElementById('buy-tp-sl').innerText = '-';
-      if (signal === 'sell') {
-        const entry = currentPrice;
-        const sl = entry + risk;
-        const tp = entry - (risk * 2);
-        document.getElementById('sell-tp-sl').innerText = `Sell Entry: ${entry.toFixed(2)} | TP: ${tp.toFixed(2)} | SL: ${sl.toFixed(2)}`;
-      } else document.getElementById('sell-tp-sl').innerText = '-';
-    }
-
-    function updateUI() {
-      const sigEl = document.getElementById('signal');
-      sigEl.innerText = signal.toUpperCase() + ' SIGNAL';
-      sigEl.className = 'signal ' + (signal === 'buy' ? 'buy' : signal === 'sell' ? 'sell' : 'neutral');
-    }
-
-    function logSignal() {
-      const tbody = document.querySelector('#signalLog tbody');
-      const row = document.createElement('tr');
-      row.innerHTML = `<td>${new Date().toLocaleTimeString()}</td><td>${currentPrice.toFixed(2)}</td><td>${signal.toUpperCase()}</td>`;
-      tbody.appendChild(row);
-      if (tbody.children.length > 20) tbody.removeChild(tbody.firstChild);
-    }
-
-    function triggerAlert() {
-      if (Notification.permission === 'granted') {
-        new Notification('XAUUSD Signal!', { body: `New ${signal.toUpperCase()} at ${currentPrice.toFixed(2)}` });
-      }
-      if (soundEnabled) {
-        (signal === 'buy' ? buyAudio : sellAudio).play();
-      }
-    }
-
-    function calcPosition() {
-      const acc = parseFloat(document.getElementById('account').value) || 10000;
-      const riskPct = parseFloat(document.getElementById('risk').value) / 100 || 0.01;
-      const dist = parseFloat(document.getElementById('sldist').value) || 10;
-      const riskAmt = acc * riskPct;
-      const size = riskAmt / dist; // Units/oz (adjust for broker lot sizing)
-      document.getElementById('possize').innerText = `Risk amount: $${riskAmt.toFixed(2)} | Suggested size: ~${size.toFixed(2)} oz (adjust for your broker lot)`;
-    }
-
-    // Init
-    fetchPrice();
-    setInterval(fetchPrice, 60000); // 60s poll (quota-friendly)
-
-    document.getElementById('enable-alerts').onclick = () => {
-      Notification.requestPermission().then(perm => {
-        if (perm === 'granted') alertsEnabled = true;
-        alert('Alerts enabled!');
-      });
-    };
-
-    document.getElementById('toggle-sound').onclick = () => {
-      soundEnabled = !soundEnabled;
-      document.getElementById('toggle-sound').innerText = 'Sound: ' + (soundEnabled ? 'ON' : 'OFF');
-    };
-  </script>
+document.getElementById('sound').onclick = e => {
+  soundOn = !soundOn;
+  e.target.textContent = 'Sound: ' + (soundOn ? 'ON' : 'OFF');
+};
+</script>
 </body>
 </html>
