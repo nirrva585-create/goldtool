@@ -3,268 +3,287 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>WebGPU • Ray Marching + Shadows + AO + Reflections</title>
+  <title>XAUUSD Pro Signal + Profit Tools</title>
   <style>
-    body { margin:0; overflow:hidden; background:#000; font-family: system-ui, sans-serif; }
-    canvas { display:block; }
-    #info {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      color: white;
-      background: rgba(0,0,0,0.5);
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 14px;
-      pointer-events: none;
-    }
+    body { font-family: Arial, sans-serif; background: #111; color: #fff; margin: 0; padding: 20px; }
+    .container { max-width: 1200px; margin: auto; }
+    h1 { text-align: center; color: gold; }
+    #price { font-size: 3em; text-align: center; margin: 20px 0; }
+    .signal { font-size: 2.5em; text-align: center; padding: 20px; border-radius: 10px; margin: 20px 0; font-weight: bold; }
+    .buy { background: #0f0; color: black; }
+    .sell { background: #f00; color: white; }
+    .neutral { background: #555; }
+    .info { display: flex; justify-content: space-around; flex-wrap: wrap; }
+    .card { background: #222; padding: 15px; border-radius: 8px; margin: 10px; min-width: 280px; text-align: center; }
+    .indicator { font-size: 1.2em; margin: 5px; }
+    input, button { padding: 8px; margin: 5px; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { border: 1px solid #444; padding: 8px; text-align: center; }
+    .disclaimer { background: #800; padding: 10px; border-radius: 5px; text-align: center; margin: 20px 0; }
   </style>
 </head>
 <body>
-  <div id="info">WebGPU Ray Marcher • Sphere + Floor • Shadows / AO / Reflections</div>
-  <canvas id="canvas"></canvas>
+  <div class="container">
+    <h1>XAUUSD Pro Signal & Profit Tools</h1>
+    <div class="disclaimer">⚠️ DISCLAIMER: This is educational/demo only. Trading gold involves high risk of loss. Not financial advice. Backtest & use at your own risk.</div>
 
-  <script type="module">
-    async function main() {
-      if (!navigator.gpu) {
-        document.body.innerHTML = "<h1 style='color:white;text-align:center;margin-top:40vh;'>WebGPU not supported in this browser</h1>";
-        return;
-      }
+    <div id="price">Loading live price...</div>
+    <div id="signal" class="signal neutral">Waiting for signal...</div>
 
-      const canvas = document.getElementById("canvas");
-      const adapter = await navigator.gpu.requestAdapter();
-      if (!adapter) throw new Error("No GPU adapter");
+    <div class="info">
+      <div class="card">
+        <h3>Current Price</h3>
+        <p id="current-price">-</p>
+      </div>
+      <div class="card">
+        <h3>Indicators</h3>
+        <p class="indicator">RSI (14): <span id="rsi">-</span></p>
+        <p class="indicator">SMA (50): <span id="sma">-</span></p>
+        <p class="indicator">EMA (20): <span id="ema">-</span></p>
+        <p class="indicator">BB (20,2): <span id="bb">-</span></p>
+      </div>
+      <div class="card">
+        <h3>TP/SL & Position</h3>
+        <p id="buy-tp-sl">-</p>
+        <p id="sell-tp-sl">-</p>
+      </div>
+    </div>
 
-      const device = await adapter.requestDevice();
-      const context = canvas.getContext("webgpu");
-      const format = navigator.gpu.getPreferredCanvasFormat();
+    <div class="card">
+      <h3>Position Size Calculator (Risk Management)</h3>
+      <label>Account ($): <input id="account" type="number" value="10000"></label><br>
+      <label>Risk %: <input id="risk" type="number" value="1" step="0.1"></label><br>
+      <label>SL Distance ($/oz): <input id="sldist" type="number" value="10"></label><br>
+      <button onclick="calcPosition()">Calculate</button>
+      <p id="possize">-</p>
+    </div>
 
-      context.configure({ device, format, alphaMode: "premultiplied" });
+    <div style="text-align:center;">
+      <button id="enable-alerts">Enable Alerts & Sound</button>
+      <button id="toggle-sound">Sound: ON</button>
+    </div>
 
-      // ──────────────────────────────────────────────────────────────
-      // WGSL Shader (full code with reflections, shadows, AO)
-      // ──────────────────────────────────────────────────────────────
-      const wgsl = /* wgsl */ `
-struct Uniforms {
-    time: f32,
-    resolution: vec2f,
-    cameraPos: vec3f,
-    cameraLookAt: vec3f,
-};
+    <!-- Charts -->
+    <div class="card" style="width:100%;">
+      <h3>XAUUSD Live Chart</h3>
+      <div id="tradingview_xau"></div>
+    </div>
+    <div class="card" style="width:100%;">
+      <h3>DXY (USD Index) - Gold Correlation</h3>
+      <div id="tradingview_dxy"></div>
+    </div>
 
-@group(0) @binding(0) var<uniform> u: Uniforms;
+    <!-- Signal Log -->
+    <div class="card">
+      <h3>Signal History</h3>
+      <table id="signalLog">
+        <thead><tr><th>Time</th><th>Price</th><th>Signal</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
 
-fn sdfScene(p: vec3f) -> f32 {
-    let sphereDist = length(p) - (1.2 + 0.15 * sin(u.time * 3.0));
-    let floorDist  = p.y + 1.0;
-    return min(sphereDist, floorDist);
-}
+    <!-- News -->
+    <div class="card">
+      <h3>Gold News (Fundamentals)</h3>
+      <iframe src="https://www.investing.com/commodities/gold-news" width="100%" height="400" frameborder="0"></iframe>
+      <p>Also check COT Reports for "whale" positioning: <a href="https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm" target="_blank">CFTC</a></p>
+    </div>
+  </div>
 
-fn normal(p: vec3f) -> vec3f {
-    let e = 0.001;
-    return normalize(vec3f(
-        sdfScene(p + vec3f(e,0,0)) - sdfScene(p - vec3f(e,0,0)),
-        sdfScene(p + vec3f(0,e,0)) - sdfScene(p - vec3f(0,e,0)),
-        sdfScene(p + vec3f(0,0,e)) - sdfScene(p - vec3f(0,0,e))
-    ));
-}
-
-fn softShadow(ro: vec3f, rd: vec3f, mint: f32, maxt: f32, k: f32) -> f32 {
-    var res = 1.0;
-    var t = mint;
-    for (var i: u32 = 0u; i < 64u; i++) {
-        let h = sdfScene(ro + rd * t);
-        res = min(res, k * h / t);
-        t += clamp(h, 0.02, 0.50);
-        if (res < 0.005 || t > maxt) { break; }
-    }
-    return clamp(res, 0.0, 1.0);
-}
-
-fn ambientOcclusion(p: vec3f, n: vec3f) -> f32 {
-    var occ = 0.0;
-    var sca = 1.0;
-    for (var i: u32 = 0u; i < 5u; i++) {
-        let h = 0.01 + 0.12 * f32(i) / 4.0;
-        let d = sdfScene(p + h * n);
-        occ += (h - d) * sca;
-        sca *= 0.95;
-    }
-    return clamp(1.0 - 3.0 * occ, 0.0, 1.0);
-}
-
-fn rayMarch(ro: vec3f, rd: vec3f) -> vec4f {
-    var t = 0.0;
-    const maxSteps = 140u;
-    const maxDist  = 40.0;
-    const epsilon  = 0.001;
-
-    for (var i: u32 = 0u; i < maxSteps; i++) {
-        let p = ro + rd * t;
-        let dist = sdfScene(p);
-        if (dist < epsilon) { return vec4f(p, t); }
-        t += dist;
-        if (t > maxDist) { break; }
-    }
-    return vec4f(0.0, 0.0, 0.0, -1.0);
-}
-
-@vertex
-fn vs_main(@builtin(vertex_index) idx: u32) -> @builtin(position) vec4f {
-    let uv = vec2f(f32(idx & 1u), f32((idx >> 1u) & 1u)) * 2.0 - 1.0;
-    return vec4f(uv.x, -uv.y, 0.0, 1.0);
-}
-
-@fragment
-fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    let uv = (fragCoord.xy - 0.5 * u.resolution) / u.resolution.y;
-
-    let timeRot = u.time * 0.3;
-    let camDist = 5.5;
-    let ro = vec3f(
-        camDist * sin(timeRot),
-        2.0 + 1.5 * sin(timeRot * 0.7),
-        camDist * cos(timeRot)
-    );
-    let ta = vec3f(0.0, 0.5, 0.0);
-    let ww = normalize(ta - ro);
-    let uu = normalize(cross(ww, vec3f(0.0,1.0,0.0)));
-    let vv = cross(uu, ww);
-    let rd = normalize(uv.x * uu + uv.y * vv + 1.5 * ww);
-
-    let hit = rayMarch(ro, rd);
-    if (hit.w < 0.0) {
-        let sky = mix(vec3f(0.6, 0.8, 1.0), vec3f(0.1, 0.2, 0.5), smoothstep(-0.2, 0.8, uv.y));
-        return vec4f(pow(sky, vec3f(0.4545)), 1.0);
-    }
-
-    let p = hit.xyz;
-    let n = normal(p);
-
-    let lightPos = vec3f(4.0, 8.0, 5.0);
-    let ldir = normalize(lightPos - p);
-    let ldist = length(lightPos - p);
-    let diff = max(0.0, dot(n, ldir));
-    let shadow = softShadow(p + 0.02 * n, ldir, 0.02, ldist, 8.0);
-    let ao = ambientOcclusion(p, n);
-
-    let isSphere = sdfScene(p) > sdfScene(p + n * 0.01);
-    var baseCol = select(vec3f(0.25, 0.28, 0.30), vec3f(0.95, 0.65, 0.4), isSphere);
-
-    var reflCol = vec3f(0.0);
-    if (isSphere) {
-        let reflDir = reflect(rd, n);
-        let reflHit = rayMarch(p + 0.02 * n, reflDir);
-
-        if (reflHit.w > 0.0) {
-            let rp = reflHit.xyz;
-            let rn = normal(rp);
-            let rldir = normalize(lightPos - rp);
-            let rldist = length(lightPos - rp);
-            let rdiff = max(0.0, dot(rn, rldir));
-            let rshadow = softShadow(rp + 0.02 * rn, rldir, 0.02, rldist, 6.0);
-            let rao = ambientOcclusion(rp, rn);
-
-            let rbase = select(vec3f(0.25, 0.28, 0.30), vec3f(0.95, 0.65, 0.4), sdfScene(rp) > sdfScene(rp + rn * 0.01));
-
-            var rcol = rbase * (0.2 + 0.8 * rdiff * rshadow);
-            rcol *= 0.4 + 0.6 * rao;
-
-            let rfog = 1.0 - exp(-0.0008 * reflHit.w * reflHit.w);
-            rcol = mix(rcol, vec3f(0.6,0.75,0.9), rfog);
-
-            reflCol = rcol;
-        } else {
-            let ruv = reflect(rd, n).xz * 0.5 + 0.5;
-            reflCol = mix(vec3f(0.6, 0.8, 1.0), vec3f(0.1, 0.2, 0.5), smoothstep(-0.2, 0.8, reflect(rd, n).y));
-        }
-    }
-
-    let fresnel = pow(1.0 - max(0.0, dot(-rd, n)), 3.0);
-    var col = baseCol * (0.2 + 0.8 * diff * shadow);
-    col *= 0.4 + 0.6 * ao;
-    col = mix(col, reflCol, fresnel * 0.85);
-
-    let fog = 1.0 - exp(-0.0008 * hit.w * hit.w);
-    col = mix(col, vec3f(0.6,0.75,0.9), fog);
-
-    return vec4f(pow(col, vec3f(0.4545)), 1.0);
-}
-      `;
-
-      const shaderModule = device.createShaderModule({ code: wgsl });
-
-      const pipeline = device.createRenderPipeline({
-        layout: "auto",
-        vertex:   { module: shaderModule, entryPoint: "vs_main" },
-        fragment: { module: shaderModule, entryPoint: "fs_main", targets: [{ format }] },
-        primitive: { topology: "triangle-list" }
-      });
-
-      const uniformBuffer = device.createBuffer({
-        size: 64, // time + resolution(8) + cameraPos(12) + lookAt(12) + padding
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-      });
-
-      const bindGroup = device.createBindGroup({
-        layout: pipeline.getBindGroupLayout(0),
-        entries: [{ binding: 0, resource: { buffer: uniformBuffer } }]
-      });
-
-      // Resize handler
-      function resize() {
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width  = canvas.clientWidth  * dpr;
-        canvas.height = canvas.clientHeight * dpr;
-      }
-      window.addEventListener("resize", resize);
-      resize();
-
-      let startTime = performance.now() / 1000;
-
-      function render() {
-        const now = performance.now() / 1000;
-        const time = now - startTime;
-
-        const commandEncoder = device.createCommandEncoder();
-        const textureView = context.getCurrentTexture().createView();
-
-        const renderPass = commandEncoder.beginRenderPass({
-          colorAttachments: [{
-            view: textureView,
-            clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-            loadOp: "clear",
-            storeOp: "store"
-          }]
-        });
-
-        renderPass.setPipeline(pipeline);
-        renderPass.setBindGroup(0, bindGroup);
-
-        // Write uniforms
-        const data = new Float32Array([
-          time,
-          canvas.width, canvas.height,
-          0, 2, 5,          // camera pos placeholder (overridden in shader anyway)
-          0, 0, 0           // look at placeholder
-        ]);
-        device.queue.writeBuffer(uniformBuffer, 0, data);
-
-        renderPass.draw(3);
-        renderPass.end();
-
-        device.queue.submit([commandEncoder.finish()]);
-
-        requestAnimationFrame(render);
-      }
-
-      requestAnimationFrame(render);
-    }
-
-    main().catch(err => {
-      console.error(err);
-      document.body.innerHTML += `<pre style="color:#f44;background:#111;padding:16px;">${err}</pre>`;
+  <!-- TradingView Widgets -->
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+  <script type="text/javascript">
+    new TradingView.widget({
+      "width": "100%", "height": 500, "symbol": "OANDA:XAUUSD", "interval": "5", "timezone": "Etc/UTC",
+      "theme": "dark", "style": "1", "locale": "en", "enable_publishing": false, "container_id": "tradingview_xau"
     });
+    new TradingView.widget({
+      "width": "100%", "height": 400, "symbol": "TVC:DXY", "interval": "60", "timezone": "Etc/UTC",
+      "theme": "dark", "style": "1", "locale": "en", "enable_publishing": false, "container_id": "tradingview_dxy"
+    });
+  </script>
+
+  <script>
+    const API_KEY = 'goldapi-c1v6w5sml0iq8b3-io'; // From https://www.goldapi.io/
+    const API_URL = 'https://www.goldapi.io/api/XAU/USD';
+    const HEADERS = { 'x-access-token': API_KEY };
+
+    let prevPrice = null;
+    let currentPrice = null;
+    let signal = 'neutral';
+    let priceHistory = []; // For indicators
+    let soundEnabled = true;
+    let alertsEnabled = false;
+
+    const buyAudio = new Audio('https://www.soundjay.com/buttons/beep-01a.mp3'); // Buy beep
+    const sellAudio = new Audio('https://www.soundjay.com/buttons/beep-02.mp3'); // Sell beep
+
+    async function fetchPrice() {
+      try {
+        const res = await fetch(API_URL, { headers: HEADERS });
+        const data = await res.json();
+        if (data.price) {
+          currentPrice = data.price;
+          document.getElementById('price').innerText = currentPrice.toFixed(2);
+          document.getElementById('current-price').innerText = currentPrice.toFixed(2);
+
+          priceHistory.push(currentPrice);
+          if (priceHistory.length > 200) priceHistory.shift();
+
+          generateIndicatorsAndSignal();
+        } else {
+          document.getElementById('price').innerText = 'API Error';
+        }
+      } catch (err) {
+        document.getElementById('price').innerText = 'Fetch Error';
+      }
+    }
+
+    // Simple indicators
+    function calculateSMA(period) {
+      if (priceHistory.length < period) return null;
+      const slice = priceHistory.slice(-period);
+      return slice.reduce((a, b) => a + b, 0) / period;
+    }
+
+    let ema20 = null;
+    function calculateEMA(price, period = 20) {
+      if (!ema20) {
+        ema20 = calculateSMA(period); // Initial
+        return ema20;
+      }
+      const multiplier = 2 / (period + 1);
+      ema20 = (price * multiplier) + (ema20 * (1 - multiplier));
+      return ema20;
+    }
+
+    let gains = [], losses = [];
+    function calculateRSI(period = 14) {
+      if (priceHistory.length < period + 1) return null;
+      if (gains.length === 0) {
+        for (let i = 1; i <= period; i++) {
+          const diff = priceHistory[i] - priceHistory[i-1];
+          gains.push(diff > 0 ? diff : 0);
+          losses.push(diff < 0 ? -diff : 0);
+        }
+      } else {
+        const diff = priceHistory[priceHistory.length-1] - priceHistory[priceHistory.length-2];
+        gains.push(diff > 0 ? diff : 0);
+        losses.push(diff < 0 ? -diff : 0);
+        if (gains.length > period) gains.shift();
+        if (losses.length > period) losses.shift();
+      }
+      const avgGain = gains.reduce((a,b)=>a+b,0)/period;
+      const avgLoss = losses.reduce((a,b)=>a+b,0)/period || 0.0001;
+      const rs = avgGain / avgLoss;
+      return 100 - (100 / (1 + rs));
+    }
+
+    function calculateBB(period = 20, stdMult = 2) {
+      if (priceHistory.length < period) return null;
+      const middle = calculateSMA(period);
+      const slice = priceHistory.slice(-period);
+      const variance = slice.reduce((a,b)=>a + Math.pow(b - middle, 2), 0) / period;
+      const std = Math.sqrt(variance);
+      return { middle: middle.toFixed(2), upper: (middle + stdMult * std).toFixed(2), lower: (middle - stdMult * std).toFixed(2) };
+    }
+
+    function generateIndicatorsAndSignal() {
+      if (priceHistory.length < 50) return; // Need data
+
+      const rsi = calculateRSI();
+      const sma50 = calculateSMA(50);
+      const ema = calculateEMA(currentPrice);
+      const bb = calculateBB();
+
+      document.getElementById('rsi').innerText = rsi ? rsi.toFixed(2) : '-';
+      document.getElementById('sma').innerText = sma50 ? sma50.toFixed(2) : '-';
+      document.getElementById('ema').innerText = ema ? ema.toFixed(2) : '-';
+      document.getElementById('bb').innerText = bb ? `${bb.lower} - ${bb.middle} - ${bb.upper}` : '-';
+
+      // Consensus signal (pro-level multi-indicator)
+      let buyCount = 0, sellCount = 0;
+      if (rsi && rsi < 35) buyCount++; // Oversold
+      if (rsi && rsi > 65) sellCount++; // Overbought
+      if (sma50 && currentPrice > sma50) buyCount++; else if (sma50) sellCount++;
+      if (ema && currentPrice > ema) buyCount++; else if (ema) sellCount++;
+      if (bb && currentPrice < bb.lower) buyCount++; // Break below
+      if (bb && currentPrice > bb.upper) sellCount++;
+
+      let newSignal = 'neutral';
+      if (buyCount >= 3) newSignal = 'buy';
+      if (sellCount >= 3) newSignal = 'sell';
+
+      if (newSignal !== signal) {
+        signal = newSignal;
+        updateUI();
+        logSignal();
+        if (alertsEnabled) triggerAlert();
+      }
+
+      // TP/SL (1:2 RR example)
+      const risk = 10; // $ example
+      if (signal === 'buy') {
+        const entry = currentPrice;
+        const sl = entry - risk;
+        const tp = entry + (risk * 2);
+        document.getElementById('buy-tp-sl').innerText = `Buy Entry: ${entry.toFixed(2)} | TP: ${tp.toFixed(2)} | SL: ${sl.toFixed(2)}`;
+      } else document.getElementById('buy-tp-sl').innerText = '-';
+      if (signal === 'sell') {
+        const entry = currentPrice;
+        const sl = entry + risk;
+        const tp = entry - (risk * 2);
+        document.getElementById('sell-tp-sl').innerText = `Sell Entry: ${entry.toFixed(2)} | TP: ${tp.toFixed(2)} | SL: ${sl.toFixed(2)}`;
+      } else document.getElementById('sell-tp-sl').innerText = '-';
+    }
+
+    function updateUI() {
+      const sigEl = document.getElementById('signal');
+      sigEl.innerText = signal.toUpperCase() + ' SIGNAL';
+      sigEl.className = 'signal ' + (signal === 'buy' ? 'buy' : signal === 'sell' ? 'sell' : 'neutral');
+    }
+
+    function logSignal() {
+      const tbody = document.querySelector('#signalLog tbody');
+      const row = document.createElement('tr');
+      row.innerHTML = `<td>${new Date().toLocaleTimeString()}</td><td>${currentPrice.toFixed(2)}</td><td>${signal.toUpperCase()}</td>`;
+      tbody.appendChild(row);
+      if (tbody.children.length > 20) tbody.removeChild(tbody.firstChild);
+    }
+
+    function triggerAlert() {
+      if (Notification.permission === 'granted') {
+        new Notification('XAUUSD Signal!', { body: `New ${signal.toUpperCase()} at ${currentPrice.toFixed(2)}` });
+      }
+      if (soundEnabled) {
+        (signal === 'buy' ? buyAudio : sellAudio).play();
+      }
+    }
+
+    function calcPosition() {
+      const acc = parseFloat(document.getElementById('account').value) || 10000;
+      const riskPct = parseFloat(document.getElementById('risk').value) / 100 || 0.01;
+      const dist = parseFloat(document.getElementById('sldist').value) || 10;
+      const riskAmt = acc * riskPct;
+      const size = riskAmt / dist; // Units/oz (adjust for broker lot sizing)
+      document.getElementById('possize').innerText = `Risk amount: $${riskAmt.toFixed(2)} | Suggested size: ~${size.toFixed(2)} oz (adjust for your broker lot)`;
+    }
+
+    // Init
+    fetchPrice();
+    setInterval(fetchPrice, 60000); // 60s poll (quota-friendly)
+
+    document.getElementById('enable-alerts').onclick = () => {
+      Notification.requestPermission().then(perm => {
+        if (perm === 'granted') alertsEnabled = true;
+        alert('Alerts enabled!');
+      });
+    };
+
+    document.getElementById('toggle-sound').onclick = () => {
+      soundEnabled = !soundEnabled;
+      document.getElementById('toggle-sound').innerText = 'Sound: ' + (soundEnabled ? 'ON' : 'OFF');
+    };
   </script>
 </body>
 </html>
