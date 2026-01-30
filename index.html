@@ -1,75 +1,270 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>XAUUSD Pro Signals - Live Gold Alerts | nirrva Edition</title>
-  <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>WebGPU • Ray Marching + Shadows + AO + Reflections</title>
+  <style>
+    body { margin:0; overflow:hidden; background:#000; font-family: system-ui, sans-serif; }
+    canvas { display:block; }
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      background: rgba(0,0,0,0.5);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      pointer-events: none;
+    }
+  </style>
 </head>
 <body>
-  <header>
-    <h1>🪙 XAUUSD Pro Signal Tool</h1>
-    <p>Live Price | EMA+RSI+MACD Signals | Whale/News | ATR TP/SL | Sound Alerts | Safe Filters</p>
-    <div id="status">Loading markets...</div>
-  </header>
+  <div id="info">WebGPU Ray Marcher • Sphere + Floor • Shadows / AO / Reflections</div>
+  <canvas id="canvas"></canvas>
 
-  <section id="live-price">
-    <h2>📈 Live XAUUSD Chart (TradingView Dark)</h2>
-    <div class="tradingview-widget-container" style="height:450px; width:100%">
-      <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px); width:100%"></div>
-      <div class="tradingview-widget-copyright"><a href="https://www.tradingview.com/symbols/XAUUSD/" rel="noopener" target="_blank"><span>XAUUSD</span></a> by TradingView</div>
-      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-      {
-        "symbol": "OANDA:XAUUSD",
-        "interval": "5",
-        "timezone": "Asia/Kolkata",
-        "theme": "dark",
-        "style": "1",
-        "locale": "en",
-        "toolbar_bg": "#0e0e0e",
-        "enable_publishing": false,
-        "allow_symbol_change": true,
-        "calendar": false,
-        "support_host": "https://www.tradingview.com",
-        "autosize": true,
-        "studies": ["MASimple@tv-basicstudies:14,21"]
+  <script type="module">
+    async function main() {
+      if (!navigator.gpu) {
+        document.body.innerHTML = "<h1 style='color:white;text-align:center;margin-top:40vh;'>WebGPU not supported in this browser</h1>";
+        return;
       }
-      </script>
-    </div>
-    <div id="price-box">
-      <span id="current-price">Fetching $XAUUSD...</span> 
-      <span id="change-24h"></span>
-    </div>
-  </section>
 
-  <section id="signals">
-    <h2>🎯 Current Signal</h2>
-    <div id="signal-box" class="neutral">
-      <h3 id="signal-text">Analyzing...</h3>
-      <p id="tp-sl">TP: - | SL: - | RR: 1:3</p>
-      <p id="indicators">EMA9: - | EMA21: - | RSI: - | MACD: -</p>
-      <p id="reason">Loading pro analysis...</p>
-    </div>
-    <button id="mute-btn">🔇 Mute Alerts</button>
-    <button id="refresh-btn">🔄 Refresh Now</button>
-  </section>
+      const canvas = document.getElementById("canvas");
+      const adapter = await navigator.gpu.requestAdapter();
+      if (!adapter) throw new Error("No GPU adapter");
 
-  <section id="whale-news">
-    <h2>🐋 Whales & News (Live)</h2>
-    <div id="whale-alerts">Fetching whale buys/sells...</div>
-    <div id="news-feed">High-impact USD events: <span id="calendar"></span></div>
-    <div id="cot">COT: Commercials <span id="cot-data">-</span> (Myfxbook)</div>
-  </section>
+      const device = await adapter.requestDevice();
+      const context = canvas.getContext("webgpu");
+      const format = navigator.gpu.getPreferredCanvasFormat();
 
-  <!-- Free CORS-Safe Sounds (Mixkit/Zapsplat direct MP3) -->
-  <audio id="buy-sound" preload="auto" src="https://assets.mixkit.co/sfx/preview/mixkit-confirmation-high-beep-2898.mp3"></audio>
-  <audio id="sell-sound" preload="auto" src="https://assets.mixkit.co/sfx/preview/mixkit-negative-alert-tone-2105.mp3"></audio>
+      context.configure({ device, format, alphaMode: "premultiplied" });
 
-  <footer>
-    <p>⚠️ Trade safe: 1% risk max. Not financial advice. Data: gold-api.com, FF RSS, X Whales. For Guwahati/Assam traders (IST).</p>
-  </footer>
+      // ──────────────────────────────────────────────────────────────
+      // WGSL Shader (full code with reflections, shadows, AO)
+      // ──────────────────────────────────────────────────────────────
+      const wgsl = /* wgsl */ `
+struct Uniforms {
+    time: f32,
+    resolution: vec2f,
+    cameraPos: vec3f,
+    cameraLookAt: vec3f,
+};
 
-  <script src="script.js"></script>
+@group(0) @binding(0) var<uniform> u: Uniforms;
+
+fn sdfScene(p: vec3f) -> f32 {
+    let sphereDist = length(p) - (1.2 + 0.15 * sin(u.time * 3.0));
+    let floorDist  = p.y + 1.0;
+    return min(sphereDist, floorDist);
+}
+
+fn normal(p: vec3f) -> vec3f {
+    let e = 0.001;
+    return normalize(vec3f(
+        sdfScene(p + vec3f(e,0,0)) - sdfScene(p - vec3f(e,0,0)),
+        sdfScene(p + vec3f(0,e,0)) - sdfScene(p - vec3f(0,e,0)),
+        sdfScene(p + vec3f(0,0,e)) - sdfScene(p - vec3f(0,0,e))
+    ));
+}
+
+fn softShadow(ro: vec3f, rd: vec3f, mint: f32, maxt: f32, k: f32) -> f32 {
+    var res = 1.0;
+    var t = mint;
+    for (var i: u32 = 0u; i < 64u; i++) {
+        let h = sdfScene(ro + rd * t);
+        res = min(res, k * h / t);
+        t += clamp(h, 0.02, 0.50);
+        if (res < 0.005 || t > maxt) { break; }
+    }
+    return clamp(res, 0.0, 1.0);
+}
+
+fn ambientOcclusion(p: vec3f, n: vec3f) -> f32 {
+    var occ = 0.0;
+    var sca = 1.0;
+    for (var i: u32 = 0u; i < 5u; i++) {
+        let h = 0.01 + 0.12 * f32(i) / 4.0;
+        let d = sdfScene(p + h * n);
+        occ += (h - d) * sca;
+        sca *= 0.95;
+    }
+    return clamp(1.0 - 3.0 * occ, 0.0, 1.0);
+}
+
+fn rayMarch(ro: vec3f, rd: vec3f) -> vec4f {
+    var t = 0.0;
+    const maxSteps = 140u;
+    const maxDist  = 40.0;
+    const epsilon  = 0.001;
+
+    for (var i: u32 = 0u; i < maxSteps; i++) {
+        let p = ro + rd * t;
+        let dist = sdfScene(p);
+        if (dist < epsilon) { return vec4f(p, t); }
+        t += dist;
+        if (t > maxDist) { break; }
+    }
+    return vec4f(0.0, 0.0, 0.0, -1.0);
+}
+
+@vertex
+fn vs_main(@builtin(vertex_index) idx: u32) -> @builtin(position) vec4f {
+    let uv = vec2f(f32(idx & 1u), f32((idx >> 1u) & 1u)) * 2.0 - 1.0;
+    return vec4f(uv.x, -uv.y, 0.0, 1.0);
+}
+
+@fragment
+fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
+    let uv = (fragCoord.xy - 0.5 * u.resolution) / u.resolution.y;
+
+    let timeRot = u.time * 0.3;
+    let camDist = 5.5;
+    let ro = vec3f(
+        camDist * sin(timeRot),
+        2.0 + 1.5 * sin(timeRot * 0.7),
+        camDist * cos(timeRot)
+    );
+    let ta = vec3f(0.0, 0.5, 0.0);
+    let ww = normalize(ta - ro);
+    let uu = normalize(cross(ww, vec3f(0.0,1.0,0.0)));
+    let vv = cross(uu, ww);
+    let rd = normalize(uv.x * uu + uv.y * vv + 1.5 * ww);
+
+    let hit = rayMarch(ro, rd);
+    if (hit.w < 0.0) {
+        let sky = mix(vec3f(0.6, 0.8, 1.0), vec3f(0.1, 0.2, 0.5), smoothstep(-0.2, 0.8, uv.y));
+        return vec4f(pow(sky, vec3f(0.4545)), 1.0);
+    }
+
+    let p = hit.xyz;
+    let n = normal(p);
+
+    let lightPos = vec3f(4.0, 8.0, 5.0);
+    let ldir = normalize(lightPos - p);
+    let ldist = length(lightPos - p);
+    let diff = max(0.0, dot(n, ldir));
+    let shadow = softShadow(p + 0.02 * n, ldir, 0.02, ldist, 8.0);
+    let ao = ambientOcclusion(p, n);
+
+    let isSphere = sdfScene(p) > sdfScene(p + n * 0.01);
+    var baseCol = select(vec3f(0.25, 0.28, 0.30), vec3f(0.95, 0.65, 0.4), isSphere);
+
+    var reflCol = vec3f(0.0);
+    if (isSphere) {
+        let reflDir = reflect(rd, n);
+        let reflHit = rayMarch(p + 0.02 * n, reflDir);
+
+        if (reflHit.w > 0.0) {
+            let rp = reflHit.xyz;
+            let rn = normal(rp);
+            let rldir = normalize(lightPos - rp);
+            let rldist = length(lightPos - rp);
+            let rdiff = max(0.0, dot(rn, rldir));
+            let rshadow = softShadow(rp + 0.02 * rn, rldir, 0.02, rldist, 6.0);
+            let rao = ambientOcclusion(rp, rn);
+
+            let rbase = select(vec3f(0.25, 0.28, 0.30), vec3f(0.95, 0.65, 0.4), sdfScene(rp) > sdfScene(rp + rn * 0.01));
+
+            var rcol = rbase * (0.2 + 0.8 * rdiff * rshadow);
+            rcol *= 0.4 + 0.6 * rao;
+
+            let rfog = 1.0 - exp(-0.0008 * reflHit.w * reflHit.w);
+            rcol = mix(rcol, vec3f(0.6,0.75,0.9), rfog);
+
+            reflCol = rcol;
+        } else {
+            let ruv = reflect(rd, n).xz * 0.5 + 0.5;
+            reflCol = mix(vec3f(0.6, 0.8, 1.0), vec3f(0.1, 0.2, 0.5), smoothstep(-0.2, 0.8, reflect(rd, n).y));
+        }
+    }
+
+    let fresnel = pow(1.0 - max(0.0, dot(-rd, n)), 3.0);
+    var col = baseCol * (0.2 + 0.8 * diff * shadow);
+    col *= 0.4 + 0.6 * ao;
+    col = mix(col, reflCol, fresnel * 0.85);
+
+    let fog = 1.0 - exp(-0.0008 * hit.w * hit.w);
+    col = mix(col, vec3f(0.6,0.75,0.9), fog);
+
+    return vec4f(pow(col, vec3f(0.4545)), 1.0);
+}
+      `;
+
+      const shaderModule = device.createShaderModule({ code: wgsl });
+
+      const pipeline = device.createRenderPipeline({
+        layout: "auto",
+        vertex:   { module: shaderModule, entryPoint: "vs_main" },
+        fragment: { module: shaderModule, entryPoint: "fs_main", targets: [{ format }] },
+        primitive: { topology: "triangle-list" }
+      });
+
+      const uniformBuffer = device.createBuffer({
+        size: 64, // time + resolution(8) + cameraPos(12) + lookAt(12) + padding
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+      });
+
+      const bindGroup = device.createBindGroup({
+        layout: pipeline.getBindGroupLayout(0),
+        entries: [{ binding: 0, resource: { buffer: uniformBuffer } }]
+      });
+
+      // Resize handler
+      function resize() {
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width  = canvas.clientWidth  * dpr;
+        canvas.height = canvas.clientHeight * dpr;
+      }
+      window.addEventListener("resize", resize);
+      resize();
+
+      let startTime = performance.now() / 1000;
+
+      function render() {
+        const now = performance.now() / 1000;
+        const time = now - startTime;
+
+        const commandEncoder = device.createCommandEncoder();
+        const textureView = context.getCurrentTexture().createView();
+
+        const renderPass = commandEncoder.beginRenderPass({
+          colorAttachments: [{
+            view: textureView,
+            clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+            loadOp: "clear",
+            storeOp: "store"
+          }]
+        });
+
+        renderPass.setPipeline(pipeline);
+        renderPass.setBindGroup(0, bindGroup);
+
+        // Write uniforms
+        const data = new Float32Array([
+          time,
+          canvas.width, canvas.height,
+          0, 2, 5,          // camera pos placeholder (overridden in shader anyway)
+          0, 0, 0           // look at placeholder
+        ]);
+        device.queue.writeBuffer(uniformBuffer, 0, data);
+
+        renderPass.draw(3);
+        renderPass.end();
+
+        device.queue.submit([commandEncoder.finish()]);
+
+        requestAnimationFrame(render);
+      }
+
+      requestAnimationFrame(render);
+    }
+
+    main().catch(err => {
+      console.error(err);
+      document.body.innerHTML += `<pre style="color:#f44;background:#111;padding:16px;">${err}</pre>`;
+    });
+  </script>
 </body>
 </html>
